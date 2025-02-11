@@ -1,14 +1,17 @@
 package org.acme.DTO;
 
+import com.google.common.collect.Maps;
 import org.acme.entities.User;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class UserDTO {
     String id;
     String cpr;
-    List<String> fileLinks = new ArrayList<>();
+    Map<String, String> fileLinks = new HashMap<String, String>();
 
     public UserDTO() {}
     public UserDTO(String cpr) {
@@ -35,11 +38,11 @@ public class UserDTO {
         this.cpr = cpr;
     }
 
-    public List<String> getFileLinks() {
+    public Map<String, String> getFileLinks() {
         return fileLinks;
     }
 
-    public void setFileLinks(List<String> fileLinks) {
+    public void setFileLinks(Map<String, String> fileLinks) {
         this.fileLinks = fileLinks;
     }
 }
