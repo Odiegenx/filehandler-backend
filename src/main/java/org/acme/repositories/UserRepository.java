@@ -2,7 +2,10 @@ package org.acme.repositories;
 
 import io.quarkus.mongodb.panache.PanacheMongoRepository;
 import jakarta.enterprise.context.ApplicationScoped;
+import org.acme.DTO.UserDTO;
 import org.acme.entities.User;
+
+import java.util.List;
 
 @ApplicationScoped
 public class UserRepository implements PanacheMongoRepository<User> {
@@ -24,5 +27,9 @@ public class UserRepository implements PanacheMongoRepository<User> {
         }catch(Exception e) {
             throw new Exception(e);
         }
+    }
+
+    public List<User> findAllUser() {
+        return findAll().list();
     }
 }

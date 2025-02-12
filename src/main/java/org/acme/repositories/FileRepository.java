@@ -1,13 +1,10 @@
 package org.acme.repositories;
 
-import io.minio.GetPresignedObjectUrlArgs;
-import io.minio.ListObjectsArgs;
-import io.minio.Result;
+import io.minio.*;
 import io.minio.http.Method;
 import io.minio.messages.Item;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import io.minio.MinioAsyncClient;
 import org.acme.DTO.UserDTO;
 
 import java.io.InputStream;
@@ -26,10 +23,6 @@ public class FileRepository {
     String bucketName = "files";
     int expirationTimeMinutes = 60;
     int uploadExpirationTimeMinutes = 60;
-
-    public void uploadFile(UserDTO user, String fileName, InputStream data) {
-    }
-
 
 
     public Map<String,String> ListOfUserFileUrls(UserDTO user) throws Exception {
@@ -90,8 +83,77 @@ public class FileRepository {
         }
     }
 
+    public InputStream getFile(UserDTO user, String fileName) throws Exception {
+        try {
+            String objectKey = getUserObjectKey(user.getCpr(), fileName);
+            return minioAsyncClient.getObject(
+                    GetObjectArgs.builder()
+                    .bucket(bucketName)
+                    .object(objectKey)
+                    .build()
+            ).get();
+        } catch (Exception e) {
+            throw new Exception("Error while getting file", e);
+        }
+    }
+
+
     private String getUserObjectKey(String userId, String fileName) {
         return userId + "/" + fileName;
     }
 
+    public List<String> getUserFileNames(UserDTO userDTO) throws Exception {
+        try{
+            List<String> fileNames = new ArrayList<>();
+            String prefix = userDTO.getCpr() + "/";
+            Iterable<Result<Item>> results = minioAsyncClient.listObjects(
+                    ListObjectsArgs.builder()
+                            .bucket(bucketName)
+                            .prefix(prefix)
+                            .recursive(true)
+                            .build()
+            );
+            for (Result<Item> result : results) {
+                fileNames.add(result.get().objectName().substring(prefix.length()));
+            }
+            return fileNames;
+        }catch (Exception e) {
+            throw new Exception("Failed to list files",e);
+        }
+    }
+
+
+    public String deleteFile(UserDTO userDTO, String fileName) throws Exception {
+        try {
+            String message = "";
+            String objectKey = getUserObjectKey(userDTO.getCpr(), fileName);
+            minioAsyncClient.removeObject(
+                    RemoveObjectArgs.builder()
+                            .bucket(bucketName)
+                            .object(objectKey)
+                            .build()
+            );
+            message = "File " + fileName + " got deleted";
+            return message;
+        } catch (Exception e) {
+            throw new Exception("Failed to delete file",e);
+        }
+    }
+
+    public String uploadFile(UserDTO userDTO, String fileName, InputStream data, String contentType) throws Exception {
+        try (InputStream fileInputStream = data) {
+            String objectKey = getUserObjectKey(userDTO.getCpr(), fileName);
+            minioAsyncClient.putObject(
+                    PutObjectArgs.builder()
+                            .bucket(bucketName)
+                            .object(objectKey)
+                            .stream(fileInputStream, fileInputStream.available(), -1)
+                            .contentType(contentType)
+                            .build()
+            );
+            return "File " + fileName + " uploaded";
+        }catch (Exception e) {
+            throw new Exception("Failed to upload file",e);
+        }
+    }
 }
