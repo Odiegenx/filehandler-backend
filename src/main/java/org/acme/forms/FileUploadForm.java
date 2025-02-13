@@ -3,7 +3,6 @@ package org.acme.forms;
 import jakarta.ws.rs.FormParam;
 import jakarta.ws.rs.HeaderParam;
 import jakarta.ws.rs.core.MediaType;
-import org.acme.DTO.UserDTO;
 import org.jboss.resteasy.reactive.PartType;
 
 import java.io.InputStream;
@@ -17,9 +16,20 @@ public class FileUploadForm {
     @PartType(MediaType.APPLICATION_OCTET_STREAM)
     private InputStream data;
 
+    @FormParam("fileSize")
+    private long fileSize;
+
     @HeaderParam("Content-Type")
     private String contentType;
 
+
+    public long getFileSize() {
+        return fileSize;
+    }
+
+    public void setFileSize(long fileSize) {
+        this.fileSize = fileSize;
+    }
 
     public String getFileName() {
         return fileName;

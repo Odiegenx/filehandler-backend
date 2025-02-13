@@ -2,7 +2,6 @@ package org.acme.repositories;
 
 import io.quarkus.mongodb.panache.PanacheMongoRepository;
 import jakarta.enterprise.context.ApplicationScoped;
-import org.acme.DTO.UserDTO;
 import org.acme.entities.User;
 
 import java.util.List;

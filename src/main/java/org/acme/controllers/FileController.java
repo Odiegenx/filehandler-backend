@@ -4,7 +4,6 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
-import kotlin.ExperimentalMultiplatform;
 import org.acme.DTO.UserDTO;
 import org.acme.forms.FileUploadForm;
 import org.acme.services.FileService;
@@ -158,13 +157,41 @@ public class FileController {
                     If you want to test it with postman, setup the formData in the Body/form-data tap.""")
 
     @APIResponse(responseCode = "201", description = "File FILENAME uploaded")
-    public Response uploadFile(@PathParam("userId") String userId , @ExperimentalMultiplatform FileUploadForm form) {
+    public Response uploadFile(@PathParam("userId") String userId , @BeanParam FileUploadForm form) {
         try {
             UserDTO userDTO = userService.getUser(userId);
-            String message = fileService.uploadFile(userDTO, form.getData(), form.getFileName(), form.getContentType());
+            //byte[] file = form.getData().readAllBytes();
+            String message = fileService.uploadFile(userDTO, form.getData(), form.getFileName(), form.getContentType(),form.getFileSize());
             return Response.ok(message).status(Response.Status.CREATED).build();
         } catch (Exception e) {
             return exceptionsHandler.handleException(e);
         }
     }
+
+
+    @POST
+    @Path("/{userId}/uploadLargeFile")
+    @Consumes(MediaType.MULTIPART_FORM_DATA)
+    @Operation(summary = "Uploads a file to the user's folder in minio", description =
+            """
+                    The endpoint expects to get formData with the file and fileName appended, example:\s
+                    const formData = new FormData();
+                    formData.append('file', fileInput.files[0]);
+                    formData.append('fileName', fileInput.files[0].name);
+                    as well as a Content-Type header matching the files type.
+                    
+                    If you want to test it with postman, setup the formData in the Body/form-data tap.""")
+
+    @APIResponse(responseCode = "201", description = "File FILENAME uploaded")
+    public Response uploadLargeFile(@PathParam("userId") String userId , @BeanParam FileUploadForm form) {
+        try {
+            UserDTO userDTO = userService.getUser(userId);
+            //byte[] file = form.getData().readAllBytes();
+            String message = fileService.uploadLargeFile(userDTO, form.getData(), form.getFileName(), form.getContentType(),form.getFileSize());
+            return Response.ok(message).status(Response.Status.CREATED).build();
+        } catch (Exception e) {
+            return exceptionsHandler.handleException(e);
+        }
+    }
+
 }

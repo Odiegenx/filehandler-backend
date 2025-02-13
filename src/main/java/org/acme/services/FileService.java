@@ -41,8 +41,12 @@ public class FileService {
          return fileRepository.deleteFile(userDTO,fileName);
     }
 
-    public String uploadFile(UserDTO userDTO, InputStream fileInputStream, String fileName,String contentType) throws Exception {
+    public String uploadFile(UserDTO userDTO, InputStream fileInputStream, String fileName,String contentType, long fileSize) throws Exception {
          // more validation logic
-         return fileRepository.uploadFile(userDTO,fileName,fileInputStream,contentType);
+         return fileRepository.uploadFile(userDTO,fileName,fileInputStream,contentType,fileSize);
+    }
+
+    public String uploadLargeFile(UserDTO userDTO, InputStream data, String fileName, String contentType, long fileSize) throws Exception {
+         return fileRepository.uploadLargeFileInParts(userDTO,fileName,data,fileSize);
     }
 }

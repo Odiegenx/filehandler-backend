@@ -5,25 +5,20 @@ import io.minio.http.Method;
 import io.minio.messages.Item;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import jakarta.ws.rs.core.MultivaluedMap;
 import org.acme.DTO.UserDTO;
-import org.jboss.resteasy.reactive.server.multipart.FormValue;
-import org.jboss.resteasy.reactive.server.multipart.MultipartFormDataInput;
 
-import java.io.ByteArrayInputStream;
-import java.io.InputStream;
+import java.io.*;
 import java.util.*;
-import java.util.concurrent.CompletionStage;
 import java.util.concurrent.TimeUnit;
 
 @ApplicationScoped
 public class FileRepository {
 
-    @Inject
-    MinioAsyncClient minioClient;
+   /* @Inject
+    MinioAsyncClient minioClient;*/
 
-    //@Inject
-    //MinioClient minioClient;
+    @Inject
+    MinioClient minioClient;
 
     String bucketName = "files";
     int expirationTimeMinutes = 60;
@@ -96,7 +91,8 @@ public class FileRepository {
                             .bucket(bucketName)
                             .object(objectKey)
                             .build()
-            ).get();
+            );
+                    //.get();
         } catch (Exception e) {
             throw new Exception("Error while getting file", e);
         }
@@ -145,49 +141,89 @@ public class FileRepository {
         }
     }
 
-    public String uploadFile(UserDTO userDTO, String fileName, InputStream data, String contentType) throws Exception {
+    public String uploadFile(UserDTO userDTO, String fileName, InputStream data, String contentType,long fileSize) throws Exception {
+           String objectKey = getUserObjectKey(userDTO.getCpr(), fileName);
         try {
-            String objectKey = getUserObjectKey(userDTO.getCpr(), fileName);
+            // Read all bytes before uploading to release the file
             byte[] bytes = data.readAllBytes();
-            data.close();
-            try (InputStream fileInputStream = new ByteArrayInputStream(bytes)) {
+            data.close();  // Close the original InputStream ASAP
+            try (InputStream inputStream = new ByteArrayInputStream(bytes)) { // Use memory-based stream
                 minioClient.putObject(
                         PutObjectArgs.builder()
                                 .bucket(bucketName)
                                 .object(objectKey)
-                                .stream(fileInputStream, bytes.length, -1)
+                                .stream(inputStream, bytes.length, -1) // Correct part size
                                 .contentType(contentType)
                                 .build()
-                ).thenApply(response -> "File " + fileName + " uploaded");
+                );
+                inputStream.close();
             }
-            return "File " + fileName + " uploaded";
         } catch (Exception e) {
-            throw new Exception("Failed to upload file", e);
+            throw new Exception("Failed to upload file: " + e.getMessage(), e);
         }
+        return "File " + fileName + " uploaded";
     }
 
-    public CompletionStage<String> uploadFile1(UserDTO userDTO, String fileName, InputStream data, String contentType) throws Exception {
-        try {
-            String objectKey = getUserObjectKey(userDTO.getCpr(), fileName);
-            byte[] bytes = data.readAllBytes();
-            InputStream fileInputStream = new ByteArrayInputStream(bytes);
+    public String uploadLargeFileInParts(UserDTO user, String fileName, InputStream data, long fileSize) throws Exception {
+        int PART_SIZE = 5 * 1024 * 1024; // 5MB per part
+        byte[] buffer = new byte[PART_SIZE];
+        int partNumber = 1;
+        List<ComposeSource> sources = new ArrayList<>();
+        String objectKey = getUserObjectKey(user.getCpr(), fileName);
 
-            minioClient.putObject(
+        try (BufferedInputStream bis = new BufferedInputStream(data)) {
+            int bytesRead;
+            while ((bytesRead = bis.read(buffer)) != -1) {
+                String partName = objectKey + ".part" + partNumber;
+
+                // Upload each part
+                try (ByteArrayInputStream partStream = new ByteArrayInputStream(buffer, 0, bytesRead)) {
+                    minioClient.putObject(
                             PutObjectArgs.builder()
                                     .bucket(bucketName)
-                                    .object(objectKey)
-                                    .stream(fileInputStream, bytes.length, -1)
-                                    .contentType(contentType)
+                                    .object(partName)
+                                    .stream(partStream, bytesRead, -1)
                                     .build()
-                    ).thenApply(response -> "File " + fileName + " uploaded")
-                    .exceptionally(e -> "File " + fileName + "failed to upload");
-            fileInputStream.close();
-            data.close();
-        } catch (Exception e) {
-            throw new Exception("Failed to upload file", e);
+                    );
+                }
+
+                // Add part to compose list
+                sources.add(ComposeSource.builder()
+                        .bucket(bucketName)
+                        .object(partName)
+                        .build());
+                partNumber++;
+            }
         }
-        ;
-        return null;
+        composeFile(bucketName, objectKey, sources);
+        cleanUp(sources);
+        return "File " + fileName + " uploaded";
     }
+    public void composeFile(String bucketName, String objectName, List<ComposeSource> sources) throws Exception {
+        minioClient.composeObject(
+                ComposeObjectArgs.builder()
+                        .bucket(bucketName)
+                        .object(objectName)
+                        .sources(sources)
+                        .build()
+        );
+    }
+
+    private void cleanUp(List<ComposeSource> sources) {
+        // Cleanup: Delete temporary parts
+        for (ComposeSource source : sources) {
+            try {
+                minioClient.removeObject(
+                        RemoveObjectArgs.builder()
+                                .bucket(bucketName)
+                                .object(source.object()) // Delete part
+                                .build()
+                );
+            } catch (Exception e) {
+                System.err.println("Failed to delete part: " + source.object());
+            }
+        }
+    }
+
 }
 
