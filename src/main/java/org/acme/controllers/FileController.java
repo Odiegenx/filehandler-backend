@@ -114,7 +114,7 @@ public class FileController {
             "    \"Houses.txt\",\n" +
             "    \"test2.txt\"\n" +
             "]")
-    public Response getUserFiles(@PathParam("userId") String userId) {
+    public Response getUserFileNames(@PathParam("userId") String userId) {
         try{
             UserDTO userDTO = userService.getUser(userId);
             List<String> userFileNames = fileService.getFileNames(userDTO);
@@ -153,8 +153,8 @@ public class FileController {
                     formData.append('fileName', fileInput.files[0].name);
                     as well as a Content-Type header matching the files type.
                     
-                    If you want to test it with postman, setup the formData in the Body/form-data tap
-                    and add the Content-Type header(should be automatically set by postman by feel free to overwrite it).""")
+                    If you want to test it with postman, setup the formData in the Body/form-data tap.""")
+
     @APIResponse(responseCode = "201", description = "File FILENAME uploaded")
     public Response uploadFile(@PathParam("userId") String userId,
                                @FormParam("file") InputStream fileInputStream,
