@@ -149,17 +149,17 @@ public class FileRepository {
         try  {
             String objectKey = getUserObjectKey(userDTO.getCpr(), fileName);
             byte[] bytes = data.readAllBytes();
-            InputStream fileInputStream = new ByteArrayInputStream(bytes);
-             minioClient.putObject(
-                    PutObjectArgs.builder()
-                            .bucket(bucketName)
-                            .object(objectKey)
-                            .stream(fileInputStream, bytes.length, -1)
-                            .contentType(contentType)
-                            .build()
-            ).thenApply(response -> "File " + fileName + " uploaded");
-             fileInputStream.close();
-             data.close();
+            try(InputStream fileInputStream = new ByteArrayInputStream(bytes) ) {
+                minioClient.putObject(
+                        PutObjectArgs.builder()
+                                .bucket(bucketName)
+                                .object(objectKey)
+                                .stream(fileInputStream, bytes.length, -1)
+                                .contentType(contentType)
+                                .build()
+                ).thenApply(response -> "File " + fileName + " uploaded");
+            }
+            data.close();
             return "File " + fileName + " uploaded";
         }catch (Exception e) {
             throw new Exception("Failed to upload file",e);
