@@ -5,14 +5,14 @@ import io.minio.http.Method;
 import io.minio.messages.Item;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import jakarta.ws.rs.core.MultivaluedMap;
 import org.acme.DTO.UserDTO;
+import org.jboss.resteasy.reactive.server.multipart.FormValue;
+import org.jboss.resteasy.reactive.server.multipart.MultipartFormDataInput;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.TimeUnit;
 
@@ -30,32 +30,32 @@ public class FileRepository {
     int uploadExpirationTimeMinutes = 60;
 
 
-    public Map<String,String> ListOfUserFileUrls(UserDTO user) throws Exception {
-       try {
-           Map<String,String> fileUrls = new HashMap<>();
-           String prefix = user.getCpr() + "/";
+    public Map<String, String> ListOfUserFileUrls(UserDTO user) throws Exception {
+        try {
+            Map<String, String> fileUrls = new HashMap<>();
+            String prefix = user.getCpr() + "/";
 
-           Iterable<Result<Item>> results = minioClient.listObjects(
-                   ListObjectsArgs.builder()
-                           .bucket(bucketName)
-                           .prefix(prefix)
-                           .recursive(true)
-                           .build()
-           );
-           for (Result<Item> result : results) {
-               Item item = result.get();
-               String fileName = item.objectName().substring(prefix.length());
-               String fileUrl = getFileUrl(user, fileName);
-               fileUrls.put(fileName, fileUrl);
-           }
-           return fileUrls;
-       }catch (Exception e) {
-           throw new Exception("Failed to list files",e);
-       }
+            Iterable<Result<Item>> results = minioClient.listObjects(
+                    ListObjectsArgs.builder()
+                            .bucket(bucketName)
+                            .prefix(prefix)
+                            .recursive(true)
+                            .build()
+            );
+            for (Result<Item> result : results) {
+                Item item = result.get();
+                String fileName = item.objectName().substring(prefix.length());
+                String fileUrl = getFileUrl(user, fileName);
+                fileUrls.put(fileName, fileUrl);
+            }
+            return fileUrls;
+        } catch (Exception e) {
+            throw new Exception("Failed to list files", e);
+        }
     }
 
 
-    public String getFileUrl(UserDTO user , String fileName) throws Exception {
+    public String getFileUrl(UserDTO user, String fileName) throws Exception {
         try {
             String objectKey = getUserObjectKey(user.getCpr(), fileName);
             return minioClient.getPresignedObjectUrl(
@@ -66,7 +66,7 @@ public class FileRepository {
                             .expiry(expirationTimeMinutes, TimeUnit.MINUTES)
                             .build()
             );
-        }catch (Exception e) {
+        } catch (Exception e) {
             throw new Exception("Error while getting file url", e);
         }
     }
@@ -83,7 +83,7 @@ public class FileRepository {
                             .extraQueryParams(Map.of("Content-Type", ContentType))
                             .build()
             );
-        }catch (Exception e) {
+        } catch (Exception e) {
             throw new Exception("Error while getting file url", e);
         }
     }
@@ -93,9 +93,9 @@ public class FileRepository {
             String objectKey = getUserObjectKey(user.getCpr(), fileName);
             return minioClient.getObject(
                     GetObjectArgs.builder()
-                    .bucket(bucketName)
-                    .object(objectKey)
-                    .build()
+                            .bucket(bucketName)
+                            .object(objectKey)
+                            .build()
             ).get();
         } catch (Exception e) {
             throw new Exception("Error while getting file", e);
@@ -108,7 +108,7 @@ public class FileRepository {
     }
 
     public List<String> getUserFileNames(UserDTO userDTO) throws Exception {
-        try{
+        try {
             List<String> fileNames = new ArrayList<>();
             String prefix = userDTO.getCpr() + "/";
             Iterable<Result<Item>> results = minioClient.listObjects(
@@ -122,8 +122,8 @@ public class FileRepository {
                 fileNames.add(result.get().objectName().substring(prefix.length()));
             }
             return fileNames;
-        }catch (Exception e) {
-            throw new Exception("Failed to list files",e);
+        } catch (Exception e) {
+            throw new Exception("Failed to list files", e);
         }
     }
 
@@ -141,15 +141,16 @@ public class FileRepository {
             message = "File " + fileName + " got deleted";
             return message;
         } catch (Exception e) {
-            throw new Exception("Failed to delete file",e);
+            throw new Exception("Failed to delete file", e);
         }
     }
 
     public String uploadFile(UserDTO userDTO, String fileName, InputStream data, String contentType) throws Exception {
-        try  {
+        try {
             String objectKey = getUserObjectKey(userDTO.getCpr(), fileName);
             byte[] bytes = data.readAllBytes();
-            try(InputStream fileInputStream = new ByteArrayInputStream(bytes) ) {
+            data.close();
+            try (InputStream fileInputStream = new ByteArrayInputStream(bytes)) {
                 minioClient.putObject(
                         PutObjectArgs.builder()
                                 .bucket(bucketName)
@@ -159,15 +160,14 @@ public class FileRepository {
                                 .build()
                 ).thenApply(response -> "File " + fileName + " uploaded");
             }
-            data.close();
             return "File " + fileName + " uploaded";
-        }catch (Exception e) {
-            throw new Exception("Failed to upload file",e);
+        } catch (Exception e) {
+            throw new Exception("Failed to upload file", e);
         }
     }
 
     public CompletionStage<String> uploadFile1(UserDTO userDTO, String fileName, InputStream data, String contentType) throws Exception {
-        try  {
+        try {
             String objectKey = getUserObjectKey(userDTO.getCpr(), fileName);
             byte[] bytes = data.readAllBytes();
             InputStream fileInputStream = new ByteArrayInputStream(bytes);
@@ -183,9 +183,11 @@ public class FileRepository {
                     .exceptionally(e -> "File " + fileName + "failed to upload");
             fileInputStream.close();
             data.close();
-        }catch (Exception e) {
-            throw new Exception("Failed to upload file",e);
-        };
+        } catch (Exception e) {
+            throw new Exception("Failed to upload file", e);
+        }
+        ;
         return null;
     }
 }
+

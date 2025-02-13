@@ -4,7 +4,9 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
+import kotlin.ExperimentalMultiplatform;
 import org.acme.DTO.UserDTO;
+import org.acme.forms.FileUploadForm;
 import org.acme.services.FileService;
 import jakarta.ws.rs.core.Response;
 import org.acme.services.UserService;
@@ -156,13 +158,10 @@ public class FileController {
                     If you want to test it with postman, setup the formData in the Body/form-data tap.""")
 
     @APIResponse(responseCode = "201", description = "File FILENAME uploaded")
-    public Response uploadFile(@PathParam("userId") String userId,
-                               @FormParam("file") InputStream fileInputStream,
-                               @FormParam("fileName") String fileName,
-                               @HeaderParam("Content-Type") String contentType) {
+    public Response uploadFile(@PathParam("userId") String userId , @ExperimentalMultiplatform FileUploadForm form) {
         try {
             UserDTO userDTO = userService.getUser(userId);
-            String message = fileService.uploadFile(userDTO, fileInputStream, fileName,contentType);
+            String message = fileService.uploadFile(userDTO, form.getData(), form.getFileName(), form.getContentType());
             return Response.ok(message).status(Response.Status.CREATED).build();
         } catch (Exception e) {
             return exceptionsHandler.handleException(e);
