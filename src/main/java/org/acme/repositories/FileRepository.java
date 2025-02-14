@@ -5,11 +5,12 @@ import io.minio.http.Method;
 import io.minio.messages.Item;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import org.acme.DTO.UploadProgressDTO;
 import org.acme.DTO.UserDTO;
+import org.acme.websockets.UploadProgressSocket;
 
 import java.io.*;
 import java.util.*;
-import java.util.concurrent.CompletionStage;
 import java.util.concurrent.TimeUnit;
 
 @ApplicationScoped
@@ -20,6 +21,9 @@ public class FileRepository {
 
     @Inject
     MinioClient minioClient;
+
+    @Inject
+    UploadProgressSocket uploadProgress;
 
     String bucketName = "files";
     int expirationTimeMinutes = 60;
@@ -88,12 +92,12 @@ public class FileRepository {
     public InputStream getFile(UserDTO user, String fileName) throws Exception {
         try {
             String objectKey = getUserObjectKey(user.getCpr(), fileName);
-            return minioClient.getObject(
+            return minioAsyncClient.getObject(
                     GetObjectArgs.builder()
                             .bucket(bucketName)
                             .object(objectKey)
                             .build()
-            );
+            ).get();
                     //.get();
         } catch (Exception e) {
             throw new Exception("Error while getting file", e);
@@ -232,6 +236,12 @@ public class FileRepository {
                         .bucket(bucketName)
                         .object(partName)
                         .build());
+                UploadProgressDTO uploadProgressDTO = new UploadProgressDTO();
+                uploadProgressDTO.setFileName(fileName);
+                uploadProgressDTO.setUploadedParts(partNumber);
+                uploadProgressDTO.setTotalParts(fileSize/PART_SIZE);
+                uploadProgressDTO.setPercentage((double) partNumber /( Math.floorDiv(fileSize ,PART_SIZE)) * 100);
+                uploadProgress.sendProgress(user.getCpr(),uploadProgressDTO);
                 partNumber++;
             }
         }
