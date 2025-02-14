@@ -17,6 +17,7 @@ import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletionStage;
 
 @ApplicationScoped
 @Path("/files")
@@ -53,6 +54,17 @@ public class FileController {
             userDTO.setFileLinks(fileService.getFileLinksByUser(userDTO));
             return Response.ok(userDTO).status(Response.Status.OK).build();
         } catch (Exception e) {
+            return exceptionsHandler.handleException(e);
+        }
+    }
+
+    @GET
+    @Path("/{userId}/{fileName}")
+    public Response getFileUrl(@PathParam("userId") String userId, @PathParam("fileName") String fileName) {
+        try{
+            UserDTO userDTO = userService.getUser(userId);
+            return Response.ok(fileService.getFileUrl(userDTO, fileName)).status(Response.Status.OK).build();
+        }catch (Exception e) {
             return exceptionsHandler.handleException(e);
         }
     }
@@ -193,5 +205,16 @@ public class FileController {
             return exceptionsHandler.handleException(e);
         }
     }
+/*
+    @POST
+    @Path("/{userId}/testuploadlargefile")
+    public CompletionStage<String> testUploadLargeFile(@PathParam("userId") String userId , @BeanParam FileUploadForm form) {
+        try{
+            UserDTO userDTO = userService.getUser(userId);
+            return fileService.testUploadLargeFile(userDTO,form.getData(),form.getFileName(),form.getContentType(),form.getFileSize());
+        } catch (Exception e) {
+            return null;
+        }
+    }*/
 
 }

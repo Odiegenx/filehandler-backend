@@ -49,4 +49,9 @@ public class FileService {
     public String uploadLargeFile(UserDTO userDTO, InputStream data, String fileName, String contentType, long fileSize) throws Exception {
          return fileRepository.uploadLargeFileInParts(userDTO,fileName,data,fileSize);
     }
+
+    public String getFileUrl(UserDTO userDTO, String fileName) throws Exception {
+         //  more validation logic
+        return fileRepository.getFileUrl(userDTO,fileName);
+    }
 }

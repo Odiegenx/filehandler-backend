@@ -9,13 +9,14 @@ import org.acme.DTO.UserDTO;
 
 import java.io.*;
 import java.util.*;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.TimeUnit;
 
 @ApplicationScoped
 public class FileRepository {
 
-   /* @Inject
-    MinioAsyncClient minioClient;*/
+    @Inject
+    MinioAsyncClient minioAsyncClient;
 
     @Inject
     MinioClient minioClient;
@@ -59,6 +60,7 @@ public class FileRepository {
                             .method(Method.GET)
                             .object(objectKey)
                             .expiry(expirationTimeMinutes, TimeUnit.MINUTES)
+                            .extraQueryParams(Map.of("response-content-disposition", "inline"))
                             .build()
             );
         } catch (Exception e) {
@@ -164,6 +166,44 @@ public class FileRepository {
         return "File " + fileName + " uploaded";
     }
 
+/*    public String uploadLargeFileAsync(UserDTO user, String fileName, InputStream data, long fileSize) throws Exception {
+        int PART_SIZE = 100 * 1024 * 1024;
+        byte[] buffer = new byte[PART_SIZE];
+        int partNumber = 1;
+        List<ComposeSource> sources = new ArrayList<>();
+        String objectKey = getUserObjectKey(user.getCpr(), fileName);
+
+        try(BufferedInputStream bis = new BufferedInputStream(data)) {
+            int bytesRead;
+            while((bytesRead = bis.read(buffer)) != -1) {
+                String partName = objectKey +".part"+ partNumber;
+                partNumber++;
+                try(ByteArrayInputStream partStream = new ByteArrayInputStream(buffer,0,bytesRead)) {
+                    minioAsyncClient.putObject(
+                            PutObjectArgs.builder()
+                                    .bucket(bucketName)
+                                    .object(partName)
+                                    .stream(partStream, bytesRead, -1)
+                                    .build()
+                    ).thenApply(response -> {
+                        sources.add(ComposeSource.builder()
+                                .bucket(bucketName)
+                                .object(partName)
+                                .build()
+                        );
+                    return response;
+                    });
+                }
+            }
+        } catch (Exception e) {
+            throw new Exception("Failed to upload file: " + e.getMessage(), e);
+        }
+        composeFile(bucketName, objectKey, sources);
+        cleanUp(sources);
+
+        return "File " + fileName + " uploaded";
+    }*/
+
     public String uploadLargeFileInParts(UserDTO user, String fileName, InputStream data, long fileSize) throws Exception {
         int PART_SIZE = 5 * 1024 * 1024; // 5MB per part
         byte[] buffer = new byte[PART_SIZE];
@@ -224,6 +264,7 @@ public class FileRepository {
             }
         }
     }
+
 
 }
 
